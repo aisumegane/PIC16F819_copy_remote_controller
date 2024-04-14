@@ -54,12 +54,12 @@ void oscillator_setup(void)
 
 void option_reg_setup(void)
 {   /*OPTION_REG*//*datasheet P.19*//*WDTタイマ、ポート初期一部設定*/
-    OPTION_REGbits.nRBPU   = CLEAR;    /* PORT-B Pull-up Enable bit (1:Disable / 0:Enable) */
+    OPTION_REGbits.nRBPU   = SET;    /* PORT-B Pull-up Enable bit (1:Disable / 0:Enable) */
     OPTION_REGbits.INTEDG  = SET;      /* RB0/INT pin Interrupt Edge Select bit (1:rising edge / 0:falling edge) */
     OPTION_REGbits.T0CS    = CLEAR;    /* TMR0 Clock Source Select bit (1:T0CKI pin / 0:Internal (CKLO)) */
     OPTION_REGbits.T0SE    = CLEAR;    /* TMR0 Source Edge Select bit(1:high-to-low transition on T0CKI / 0:low-to-high transition on T0CKI) */
     OPTION_REGbits.PSA     = CLEAR;    /* Prescaler Assignment bit (1:assigned to WDT / 0:assigned to Timer0) */
-    OPTION_REGbits.PS2     = SET;    /* Prescaler Rate Select bit (PS2,1,0) */
+    OPTION_REGbits.PS2     = SET;      /* Prescaler Rate Select bit (PS2,1,0) */
     OPTION_REGbits.PS1     = CLEAR;
     OPTION_REGbits.PS0     = CLEAR;
     
@@ -157,21 +157,21 @@ void io_port_setup(void)
     TRISAbits.TRISA2 = CLEAR;
     TRISAbits.TRISA3 = CLEAR;
     
-    TRISAbits.TRISA4 = CLEAR;
-    TRISAbits.TRISA5 = CLEAR;
+    TRISAbits.TRISA4 = SET;
+    TRISAbits.TRISA5 = SET;
     TRISAbits.TRISA6 = CLEAR;
     TRISAbits.TRISA7 = CLEAR;
     
     /*TRISB*/   /*1:入力 / 0:出力*/
-    TRISBbits.TRISB0 = CLEAR;
-    TRISBbits.TRISB1 = CLEAR;
-    TRISBbits.TRISB2 = CLEAR;
+    TRISBbits.TRISB0 = SET;
+    TRISBbits.TRISB1 = SET;
+    TRISBbits.TRISB2 = SET;
     TRISBbits.TRISB3 = CLEAR;
     
     TRISBbits.TRISB4 = CLEAR;
     TRISBbits.TRISB5 = CLEAR;
-    TRISBbits.TRISB6 = CLEAR;
-    TRISBbits.TRISB7 = CLEAR;
+    TRISBbits.TRISB6 = SET;
+    TRISBbits.TRISB7 = SET;
     
     /*PORTA*/   /*1:Hレベル出力 / 0:Lレベル出力*/ 
     PORTAbits.RA0 = CLEAR;
@@ -236,16 +236,16 @@ void timer1_setup(void)
     T1CONbits.TMR1ON = CLEAR;
 
     /*CCP1CON*/ /*datasheet P.67*/
-    /*CCP1CONbits_t.CCP1X = SET/CLEAR;*/    /* リード用? 特に使わない */
-    /*CCP1CONbits_t.CCP1Y = SET/CLEAR;*/    /* リード用? 特に使わない */
+    /*CCP1CONbits_t.CCP1X = SET/CLEAR;*/
+    /*CCP1CONbits_t.CCP1Y = SET/CLEAR;*/
     CCP1CONbits.CCP1M3 = SET;
     CCP1CONbits.CCP1M2 = CLEAR;
-    CCP1CONbits.CCP1M1 = CLEAR;
-    CCP1CONbits.CCP1M0 = CLEAR;
+    CCP1CONbits.CCP1M1 = SET;
+    CCP1CONbits.CCP1M0 = SET;
     
     /*CCPR1H,CCPR1L*/
-    /* 動作周波数設定 = 10ms = 0.000,004 sec * 25000(0x61A8) */
+    /* 動作周波数設定 = 50ms = 0.000,004 sec * 12500(0x30D4) */
     /* 0までロールオーバー(MAXの次に0を数えて1カウントする)ので、1引く */
-    CCPR1H = 0x61;
-    CCPR1L = 0xA8;  /* Timer0でも十分 */   
+    CCPR1H = 0x30;
+    CCPR1L = 0xD3;  /* Timer0でも十分 */   
 }

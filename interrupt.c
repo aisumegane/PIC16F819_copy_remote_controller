@@ -13,6 +13,7 @@
 
 
 unsigned int cnt = 0;
+unsigned char interrupt__maintask_go = CLEAR;
 
 static void interrupt isr(void);
 static void interrupt_timer0_tmr0if(void);
@@ -53,9 +54,6 @@ static void interrupt_timer0_tmr0if(void)
 {   
     if (cnt == 10)
     {
-        RB0 = ~RB0;         // 出力ポートを反転させる
-        RA1 = ~RA1;         // 出力ポートを反転させる
-        RA7 = ~RA7;
         cnt = 0;            // オーバーフローカウンタをリセット
     }
     TMR0 = 160;            // Timer0 を再設定
@@ -75,10 +73,6 @@ static void interrupt_timer1_tmr1if(void)
 }
 
 static void interrupt_timer1_ccp1if(void)
-{
-    TMR1H = 0x00;       /*現在のカウンタリセット*/
-    TMR1L = 0x00;       /*現在のカウンタリセット*/
-    
-    
-    RA0 = ~RA0;         // 出力ポートを反転させる
+{    
+    interrupt__maintask_go = SET;
 }

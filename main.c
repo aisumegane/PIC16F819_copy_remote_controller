@@ -11,23 +11,39 @@
 #include "grobal_function.h"
 #include "register_setup.h"         /* レジスタ設定 */
 #include "interrupt.h"
+#include "peripheral_in.h"
+#include "sequence.h"
+#include "peripheral_out.h"
 
 
-/* =======関数プロトタイプ宣言======= */
-void init(void);
+
+
+void main_init(void);
+void maintask(void);
 
 void main(void) {
-    init();
+    main_init();
     gf_enable_interrupt();
     gf_timer1_start();
     
     while(1)
     {
-        
+        sequence_main();    
+        maintask();
     }   
 }
 
-void init(void)
+void main_init(void)
 {
+    /* PIC16F819 ハードウェア設定 */
     pic819_register_setup();
+    
+    peripheral_in_init();
+    peripheral_out_init();
+}
+
+void maintask(void)
+{
+   peripheral_in_main();       /* ポートの入力判定を行う */
+   peripheral_out_main();      /* ポートの出力判定を行う */
 }

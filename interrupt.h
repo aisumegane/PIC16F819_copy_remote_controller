@@ -14,6 +14,7 @@ extern "C" {
 
 // Timer0 のオーバーフローをカウントする
 extern unsigned int cnt;
+extern unsigned char interrupt__maintask_go;
 
 #ifdef	__cplusplus
 }
