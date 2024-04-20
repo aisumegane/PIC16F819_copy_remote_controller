@@ -7,13 +7,22 @@
 
 
 #include <xc.h>
+#include <pic16f819.h>
 
 /*header*/
 #include "grobal_macro.h"
 #include "register_setup.h"
 
-/*grobal val*/
-
+typedef union {
+    struct {    /*定義順序注意(下位bitから詰める)*/
+        unsigned char low_ccp1x          :1; /*bit 0     */
+        unsigned char low_ccp1y          :1; /*bit 1     */
+        unsigned char high_8bit          :8; /*bit 2?9  */
+        unsigned char unusebit           :6; /*bit 10?15*/
+    }bit_field;
+    
+    unsigned short u_short_pwm_duty;
+} DUTY_REG_SET;
 
 /*global func prototype*/
 void pic819_register_setup_byte_set(void);
@@ -27,6 +36,8 @@ void ad_converter_setup();
 
 void timer0_setup();
 void timer1_setup();
+void timer2_setup();
+void set_pwm_duty(unsigned short duty);
 
 void pic819_register_setup(void)
 {         
@@ -41,8 +52,9 @@ void pic819_register_setup(void)
     io_port_setup();            /*IOポート設定*/
     ad_converter_setup();       /*ADコンバータ設定*/
     
-    timer0_setup();             /*Timer0設定*/
-    timer1_setup();             /*Timer1設定*/
+    timer0_setup();             /*timer0設定*/
+    timer1_setup();             /*timer1設定*/
+    timer2_setup();             /*timer2設定*/
 }
 
 void oscillator_setup(void)
@@ -55,7 +67,7 @@ void oscillator_setup(void)
 void option_reg_setup(void)
 {   /*OPTION_REG*//*datasheet P.19*//*WDTタイマ、ポート初期一部設定*/
     OPTION_REGbits.nRBPU   = SET;    /* PORT-B Pull-up Enable bit (1:Disable / 0:Enable) */
-    OPTION_REGbits.INTEDG  = SET;      /* RB0/INT pin Interrupt Edge Select bit (1:rising edge / 0:falling edge) */
+    OPTION_REGbits.INTEDG  = SET;      /* RB0/INT pin Interrupt Edge Select bit (1:rising edge / 0:falling edge) */ /* 初回は信号待ち(0→1待ち)なので立ち上がりエッジ */
     OPTION_REGbits.T0CS    = CLEAR;    /* TMR0 Clock Source Select bit (1:T0CKI pin / 0:Internal (CKLO)) */
     OPTION_REGbits.T0SE    = CLEAR;    /* TMR0 Source Edge Select bit(1:high-to-low transition on T0CKI / 0:low-to-high transition on T0CKI) */
     OPTION_REGbits.PSA     = CLEAR;    /* Prescaler Assignment bit (1:assigned to WDT / 0:assigned to Timer0) */
@@ -75,23 +87,25 @@ void interrupt_setup(void)
     INTCONbits.GIE = CLEAR;   /*割込みベクタが1つしかないのでここ禁止しとくだけにする*/
     INTCONbits.PEIE = CLEAR;
     INTCONbits.TMR0IE = SET;
-    INTCONbits.INTE = CLEAR;
+    INTCONbits.INTE = SET;
+    
     INTCONbits.RBIE = CLEAR;
+    INTCONbits.TMR0IF = CLEAR;
+    INTCONbits.INTF = CLEAR;
+    INTCONbits.RBIF = CLEAR;
     
     /*PIE1*/
     PIE1bits.ADIE = CLEAR;
     PIE1bits.SSPIE = CLEAR;
     PIE1bits.CCP1IE = SET;
-    PIE1bits.TMR2IE = CLEAR;
+    PIE1bits.TMR2IE = SET;      /*PWM mode*/
     PIE1bits.TMR1IE = CLEAR;
     
     /*PIE2*/
     PIE2bits.EEIE = CLEAR;
     
-    /*割込み要求フラグリセット*/
-    /*INTCON*/
-    INTCONbits.TMR0IF = CLEAR;
-    INTCONbits.RBIF = CLEAR;
+
+
     
     /*PIR1*/
     PIR1bits.ADIF = CLEAR;
@@ -226,7 +240,10 @@ void timer0_setup(void)
 }
 
 void timer1_setup(void)
-{   /*T1CON*/ /*datasheet P.59*/
+{
+#if 0
+    /*CCPモード設定*/
+    /*T1CON*/ /*datasheet P.59*/
     /*T1CON*/
     T1CONbits.T1CKPS1 = SET;      /*(Fsoc/4)の8分周 */ /* 2MHz/8 = 250kHz(0.000,004 sec) */
     T1CONbits.T1CKPS0 = SET;
@@ -248,4 +265,86 @@ void timer1_setup(void)
     /* 0までロールオーバー(MAXの次に0を数えて1カウントする)ので、1引く */
     CCPR1H = 0x30;
     CCPR1L = 0xD3;  /* Timer0でも十分 */   
+#endif
+    /*PWMモード設定*/
+    /*T1CON*/ /*datasheet P.59*/
+    /*T1CON*/
+    T1CONbits.T1CKPS1 = SET;      /*(Fsoc/4)の8分周 */ /* 2MHz/8 = 250kHz(0.000,004 sec) */
+    T1CONbits.T1CKPS0 = SET;
+    T1CONbits.T1OSCEN = CLEAR;      /*for external clock*/        
+    T1CONbits.nT1SYNC = SET;        /*for external clock*/
+    T1CONbits.TMR1CS = CLEAR;       /*Internal clock*/
+    T1CONbits.TMR1ON = CLEAR;
+
+    /*CCP1CON*/ /*datasheet P.67*/
+    /*CCP1CONbits_t.CCP1X = SET/CLEAR;*/
+    /*CCP1CONbits_t.CCP1Y = SET/CLEAR;*/
+    CCP1CONbits.CCP1M3 = SET;
+    CCP1CONbits.CCP1M2 = SET;
+    CCP1CONbits.CCP1M1 = SET;   /*無効*/
+    CCP1CONbits.CCP1M0 = SET;   /*無効*/
+    
+    /*CCPR1H,CCPR1L*/
+    /* 動作周波数設定 = 50ms = 0.000,004 sec * 12500(0x30D4) */
+    /* 0までロールオーバー(MAXの次に0を数えて1カウントする)ので、1引く */
+    //CCPR1H = 0x30;  
+    
+
+#if 1
+    CCPR1L = 0x11;
+    CCP1CONbits.CCP1X = CLEAR;
+    CCP1CONbits.CCP1Y = CLEAR;
+#else
+    set_pwm_duty(100);
+#endif
+}
+
+void timer2_setup()
+{
+    T2CONbits.TOUTPS3   = CLEAR;
+    T2CONbits.TOUTPS2   = CLEAR;
+    T2CONbits.TOUTPS1   = CLEAR;
+    T2CONbits.TOUTPS0   = CLEAR;
+    T2CONbits.TMR2ON    = CLEAR;
+    /*分周比:fosc/4を0分割：2,000,000Hz*/
+    T2CONbits.T2CKPS1   = CLEAR;
+    T2CONbits.T2CKPS0   = CLEAR;
+    
+    /*PWM周期(period)設定：52カウント:約38kHz*/
+    PR2 = 0x34;
+}
+
+void set_pwm_duty(unsigned short duty)
+{   /*0x0000 ? 0x03FF の範囲でduty指定*/
+    DUTY_REG_SET pwm_duty;
+    
+    /*on-dutyを10bitで設定する:上位8bitがCCPR1L、下位2bitがCCP1XとCCP1L、なかなかキモイ*/
+#if 0
+    duty >>1;
+    CCPR1L = (unsigned char)duty;
+    CCP1CONbits.CCP1X = CLEAR;
+    CCP1CONbits.CCP1Y = CLEAR;
+#endif
+    
+#if 0
+    if(duty > 0x3FF)
+    {   /*オーバーフロー防止*/
+        duty = 0x3FF;
+    }
+    
+    //duty = duty << 2;
+    
+    /* 100%duty = 0x3FF (10bit MAX) */
+    pwm_duty.u_short_pwm_duty = duty;
+            
+    CCPR1L = pwm_duty.bit_field.high_8bit;
+    CCP1CONbits.CCP1X = pwm_duty.bit_field.low_ccp1x;
+    CCP1CONbits.CCP1Y = pwm_duty.bit_field.low_ccp1y;
+#endif
+#if 0
+    CCP1CONbits.CCP1X = duty & 0b0000000000000001;
+    CCP1CONbits.CCP1Y = duty & 0b0000000000000010;
+    
+    CCPR1L = duty > 2;
+#endif
 }

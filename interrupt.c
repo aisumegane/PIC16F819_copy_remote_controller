@@ -10,6 +10,7 @@
 #include "grobal_macro.h"
 #include "interrupt.h"
 #include "grobal_function.h"
+#include "copydata.h"
 
 
 unsigned int cnt = 0;
@@ -19,6 +20,8 @@ static void interrupt isr(void);
 static void interrupt_timer0_tmr0if(void);
 static void interrupt_timer1_tmr1if(void);
 static void interrupt_timer1_ccp1if(void);
+static void interrupt_timer2_tmr2if(void);
+static void interrupt_inte(void);
 
 
 static void interrupt isr(void)
@@ -34,7 +37,7 @@ static void interrupt isr(void)
         interrupt_timer0_tmr0if();
         INTCONbits.TMR0IF = CLEAR;
     }
-    if(PIR1bits.TMR1IF == SET)
+    if(PIR1bits.TMR1IF == SET)  /*timer1オーバーフロー割込み*/
     {
         interrupt_timer1_tmr1if();
         PIR1bits.TMR1IF = CLEAR;
@@ -44,7 +47,16 @@ static void interrupt isr(void)
         interrupt_timer1_ccp1if();
         PIR1bits.CCP1IF = CLEAR;
     }
-    
+    if(INTCONbits.INTF == SET)
+    {
+        interrupt_inte();
+        INTCONbits.INTF = CLEAR;
+    }
+    if(PIR1bits.TMR2IF == SET)
+    {
+        interrupt_timer2_tmr2if();
+        PIR1bits.TMR2IF = CLEAR;
+    }
     
     INTCONbits.GIE = SET;         // グローバル割り込み許可
     INTCONbits.PEIE = SET;        // リフェラル割込み許可
@@ -73,6 +85,23 @@ static void interrupt_timer1_tmr1if(void)
 }
 
 static void interrupt_timer1_ccp1if(void)
-{    
-    interrupt__maintask_go = SET;
+{
+    ;
+}
+
+static void interrupt_timer2_tmr2if(void)
+{
+    ;
+}
+
+static void interrupt_inte(void)
+{
+    unsigned int edge_select_now;
+    
+    edge_select_now = OPTION_REGbits.INTEDG; /* リードは基本どこでもいいかな */
+    
+    edge_select_now =~edge_select_now;  /* 現在のエッジ選択と反転 */
+    gf_option_integ_edge_select(edge_select_now);
+    
+    copydata_ex_interrupt_go_flag = SET;
 }

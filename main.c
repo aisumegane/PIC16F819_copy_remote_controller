@@ -12,24 +12,27 @@
 #include "register_setup.h"         /* レジスタ設定 */
 #include "interrupt.h"
 #include "peripheral_in.h"
-#include "sequence.h"
 #include "peripheral_out.h"
+#include "copydata.h"
+#include "senddata.h"
+
+#include "main.h"
 
 
-
+unsigned char sequence_num = 0;
 
 void main_init(void);
-void maintask(void);
+void main_task(void);
 
 void main(void) {
     main_init();
     gf_enable_interrupt();
     gf_timer1_start();
+    gf_timer2_start();
     
     while(1)
     {
-        sequence_main();    
-        maintask();
+        main_task();
     }   
 }
 
@@ -40,10 +43,62 @@ void main_init(void)
     
     peripheral_in_init();
     peripheral_out_init();
+    
+    sequence_num = SEQUENCE_MAIN;
 }
 
-void maintask(void)
+void main_task(void)
 {
-   peripheral_in_main();       /* ポートの入力判定を行う */
-   peripheral_out_main();      /* ポートの出力判定を行う */
+   switch(sequence_num){
+        case SEQUENCE_MAIN:
+            peripheral_in_main();       /* ポートの入力 */
+            peripheral_out_main();      /* ポートの出力 */
+#if 0
+            if(copysw_state == SET)
+            {
+                peripheral_in_init();   /* 2回連続で処理が入らないように */
+                sequence_num = SEQUENCE_COPY_DATA;   
+            }
+            else if(sendsw_state == SET)
+            {
+                peripheral_in_init();   /* 2回連続で処理が入らないように */
+                sequence_num = SEQUENCE_SEND_DATA;   
+            }
+            else
+            {
+                ;
+            }
+#endif       
+            break;
+            
+       case SEQUENCE_COPY_DATA:
+            /* external interrupt 開始 */
+            /* if external interrupt 検知 → timer1 ON */ /* 2回目以降はONをONで上書きしても変わらない */
+           
+            //copydata_main();
+            
+            if(copydata_copy_comp == SET)
+            {
+                /* external interrupt 停止 */
+                /* timer1 ON */
+                /* tmr1H/Lをリセット ※TMR1Hは未使用 */
+                
+                copydata_copy_comp = CLEAR;
+                sequence_num = SEQUENCE_MAIN;
+            }
+            break;
+            
+        case SEQUENCE_SEND_DATA:
+            senddata_main();
+            
+            if(senddata_send_comp == SET)
+            {
+                senddata_send_comp = CLEAR;
+                sequence_num = SEQUENCE_MAIN;
+            }
+            break;
+            
+       default:
+           break;
+    }
 }

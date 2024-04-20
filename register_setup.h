@@ -13,7 +13,7 @@
 
 /* ================== 外部宣言プロトタイプ宣言 ================== */
 
-void pic819_register_setup(void);
+extern void pic819_register_setup(void);
 
 
 /**/

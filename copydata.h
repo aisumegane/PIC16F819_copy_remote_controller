@@ -12,6 +12,9 @@
 extern "C" {
 #endif
 
+extern unsigned char copydata_copy_comp;    /* コピー処理完了フラグ */
+extern unsigned char copydata_ex_interrupt_go_flag;    /*割込み用*/
+
 extern void copydata_main(void);
 
 #ifdef	__cplusplus
